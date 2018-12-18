@@ -36,7 +36,8 @@ def MA(pastData , currPrice , windowSize):
     if dataLen == 0 :
         return 0
     pastData = np.insert(pastData , dataLen , values = currPrice , axis = 0)
-
+    currPrice = float(currPrice)
+    pastData = np.array(pastData , dtype = "float")
     # 各種MA測試
     SMA = talib.MA(pastData , windowSize , matype = 0)[-1] # winSize=295,return=2.0688 [0,19]
     EMA = talib.MA(pastData , windowSize , matype=1)[-1] # winSize=347 return=1.9824 [0,19]
@@ -44,10 +45,17 @@ def MA(pastData , currPrice , windowSize):
     DEMA = talib.MA(pastData , windowSize , matype=3)[-1] #winSize=211 return=2.4753 [0,19]
     TEMA = talib.MA(pastData , windowSize , matype=4)[-1] #winSize=181 return=2.8288 [0,19]   
 
+    currPrice = talib.MA(pastData , 5 , matype = 0)[-1] # winSize=295,return=2.0688 [0,19]
+    # 用兩條移動均線
+    # SMA，winSize=41 return=2.2393
+    # EMA，winSize=34 return=2.4653
+    # TEMA，winSize=158 return=1.0018
+
+
     # 低於移動平均
-    if currPrice - alpha > DEMA:
+    if currPrice - alpha > EMA:
         return 1
-    elif currPrice + beta < DEMA:
+    elif currPrice + beta < EMA:
         return -1
     else:
         return 0
@@ -126,6 +134,7 @@ def BBAND(pastData , currPrice , windowSize ):
     else:
         return 0
 
+# new data，return=1..6762
 def KD(pastData , currPrice , windowSize):
     import numpy as np
     import pandas as pd
@@ -146,19 +155,14 @@ def KD(pastData , currPrice , windowSize):
     currPrice = float(currPrice)
     if dataLen == 0 :
         return 0
-
+        
+    dataLen = len(pastData)
     # return type 是tuple 
-    K , D = talib.STOCH(high , low , close )
+    K , D = talib.STOCH(high[:dataLen] , low[:dataLen] , pastData )
 
-
-    print(dataLen)
-    if dataLen == 3690:
-        print(type(K))
-        print(type(D))
-
-    if K[dataLen] < 20 or D[dataLen] < 80:
+    if K[-1] < 20 or D[-1] < 20:
         return 1
-    elif K[dataLen] > 20 or D[dataLen] > 80:
+    elif K[-1] > 80 or D[-1] > 80:
         return -1
     else:
         return 0
@@ -206,7 +210,7 @@ def WILLR(pastData , currPrice , windowSize):
     else:
         return 0
 
-# 還沒完成策略
+# new data，目前策略只能用到return=0.7906
 def MACD(pastData , currPrice , windowSize):
     import numpy as np
     import pandas as pd
@@ -221,8 +225,27 @@ def MACD(pastData , currPrice , windowSize):
     if dataLen == 0:
         return 0
     DIF , DEA , MACDArray = talib.MACD(pastData , fastperiod = 12 , slowperiod = 26 , signalperiod = 9)
-    print(type(MACDArray) , len(MACDArray))
-    return 0
+
+
+    if dataLen == 3690:
+        plt.plot(pastData)
+        plt.show()
+
+
+    # MACD 由負轉正
+    if MACDArray[-1] > 0 and MACDArray[-4] < 0:
+        return 1
+    # DIF 由下而上穿越 DEA
+    elif DIF[-2] < DEA[-2] and DIF[-1] > DEA[-1]:
+        return 1
+    # MACD 由正轉負
+    elif MACDArray[-1] < 0 and MACDArray[-4] > 0:
+        return -1
+    # DIF 由上而下穿越 DEA
+    elif DIF[-2] > DEA[-2] and DIF[-1] < DEA[-1]:
+        return -1
+    else:
+        return 0
 
 
 def KD_BBAND(pastData , currPrice , windowSize):
@@ -301,6 +324,7 @@ def MA_RSI_BBAND(pastData , currPrice , p1 , p2 , p3):
     import talib
     import matplotlib.pyplot as plt
     dataLen = len(pastData)
+
     # currPrice 插入 pastData 最後一項，用來計算指標   ##### 資料前處理 #####
     pastData = np.insert(pastData , dataLen , values = currPrice , axis = 0)
     pastData = np.array(pastData , dtype = float)
@@ -370,5 +394,5 @@ def MA_RSI_BBAND(pastData , currPrice , p1 , p2 , p3):
 # 葛蘭碧八大法則
 # regression
 # 可以考慮使用open high low
-# KD + RSI + WILLR
+# 吳推薦：KD + RSI + WILLR
 # 指標參考 https://www.fmz.com/bbs-topic/1234
